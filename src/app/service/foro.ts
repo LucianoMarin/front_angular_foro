@@ -1,11 +1,20 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 import { Usuario } from '../models/Usuario';
 import { Publicacion } from '../models/Publicacion';
 import { Rol } from '../models/Rol';
 import { SancionContenido } from '../models/SancionContenido';
+import { UsuarioService } from './usuario';
 
 @Injectable({ providedIn: 'root' })
 export class ForoService {
+  private http = inject(HttpClient);
+  private usuarioService = inject(UsuarioService);
+
+  // Ajusta si tienes un microservicio o rutas de publicaciones en Spring Boot
+  private foroApiUrl = 'http://localhost:8082/';
+
   usuarioActual: Usuario | null = null;
 
   roles: Rol[] = [
@@ -22,9 +31,9 @@ export class ForoService {
   ];
 
   usuarios: Usuario[] = [
-    { id: 1, nombre: 'Admin Principal', email: 'admin@foro.cl', password: 'Admin123!', rol: this.roles[0] },
-    { id: 2, nombre: 'Camila Soto', email: 'camila@foro.cl', password: 'User1234!', rol: this.roles[1] },
-    { id: 3, nombre: 'Matias Rojas', email: 'matias@foro.cl', password: 'User1234!', rol: this.roles[1] }
+    { id: 1, nombre: 'Admin Principal', email: 'admin@foro.cl', correo: 'admin@foro.cl', password: 'Admin123!', rol: this.roles[0] },
+    { id: 2, nombre: 'Camila Soto', email: 'camila@foro.cl', correo: 'camila@foro.cl', password: 'User1234!', rol: this.roles[1] },
+    { id: 3, nombre: 'Matias Rojas', email: 'matias@foro.cl', correo: 'matias@foro.cl', password: 'User1234!', rol: this.roles[1] }
   ];
 
   publicaciones: Publicacion[] = [
@@ -55,12 +64,64 @@ export class ForoService {
   sanciones: SancionContenido[] = [];
 
   login(email: string, password: string): boolean {
-    const encontrado = this.usuarios.find(u => u.email === email && u.password === password);
+    const encontrado = this.usuarios.find(
+      u => (u.email === email || u.correo === email) && u.password === password
+    );
     if (encontrado) {
       this.usuarioActual = encontrado;
       return true;
     }
     return false;
+  }
+
+  loginConMicroservicio(
+    identificador: string,
+    clave: string,
+    onSuccess?: () => void,
+    onError?: (msg: string) => void
+  ): void {
+    this.usuarioService.login(identificador, clave).subscribe({
+      next: (respuestaTexto) => {
+        const textoLower = (respuestaTexto || '').toLowerCase();
+        if (
+          textoLower.includes('incorrect') ||
+          textoLower.includes('error') ||
+          textoLower.includes('invalid') ||
+          textoLower.includes('no existe')
+        ) {
+          onError?.(respuestaTexto || 'Credenciales inválidas');
+          return;
+        }
+
+        this.usuarioService.obtenerUsuarios().subscribe({
+          next: (lista) => {
+            const encontrado = lista.find(u => u.usuario === identificador);
+            this.usuarioActual = encontrado
+              ? {
+                  id: encontrado.id,
+                  nombre: encontrado.usuario,
+                  email: encontrado.usuario,
+                  correo: encontrado.usuario,
+                  rol: encontrado.rol
+                }
+              : {
+                  nombre: identificador,
+                  email: identificador,
+                  correo: identificador,
+                  rol: { nombre: 'ROL_NORMAL' }
+                };
+            onSuccess?.();
+          },
+          error: () => {
+            this.usuarioActual = { nombre: identificador, email: identificador, correo: identificador };
+            onSuccess?.();
+          }
+        });
+      },
+      error: (err) => {
+        onError?.(err?.error || 'Error al conectar con el microservicio de usuarios');
+      }
+    });
   }
 
   logout(): void {
@@ -72,21 +133,44 @@ export class ForoService {
       id: Date.now(),
       nombre: datos.nombre,
       email: datos.email,
+      correo: datos.email,
       password: datos.password,
       rol: this.roles[1]
     };
     this.usuarios.push(nuevo);
     this.usuarioActual = nuevo;
+
+    this.usuarioService.registrar(datos).subscribe({
+      next: (creado) => {
+        if (creado?.id) nuevo.id = creado.id;
+      },
+      error: () => {}
+    });
   }
 
   actualizarPerfil(nombre: string, password: string): void {
     if (!this.usuarioActual) return;
     this.usuarioActual.nombre = nombre;
     if (password) this.usuarioActual.password = password;
+
+    const userId = this.usuarioActual.id;
+    if (typeof userId === 'number') {
+      this.usuarioService
+        .actualizarUsuario(userId, {
+          usuario: nombre,
+          clave: password || this.usuarioActual.password || '1234',
+          intento: 0,
+          rol: this.usuarioActual.rol
+        })
+        .subscribe({
+          next: () => {},
+          error: () => {}
+        });
+    }
   }
 
   recuperarPassword(email: string, nuevaPassword: string): boolean {
-    const user = this.usuarios.find(u => u.email === email);
+    const user = this.usuarios.find(u => u.email === email || u.correo === email);
     if (user) {
       user.password = nuevaPassword;
       return true;
@@ -153,5 +237,13 @@ export class ForoService {
         moderador: this.usuarioActual.nombre
       });
     }
+  }
+
+  getPublicacionesApi(): Observable<Publicacion[]> {
+    return this.http.get<Publicacion[]>(`${this.foroApiUrl}/publicaciones`);
+  }
+
+  crearPublicacionApi(pub: Partial<Publicacion>): Observable<Publicacion> {
+    return this.http.post<Publicacion>(`${this.foroApiUrl}/publicaciones`, pub);
   }
 }

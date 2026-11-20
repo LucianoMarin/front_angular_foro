@@ -5,14 +5,14 @@
         <div class="card-body p-4">
           <h3 class="text-center mb-3">Iniciar Sesion</h3>
           @if (errorLogin) {
-            <div class="alert alert-danger">Credenciales incorrectas.</div>
+            <div class="alert alert-danger">{{ mensajeError }}</div>
           }
           <form [formGroup]="form" (ngSubmit)="ingresar()">
             <div class="mb-3">
-              <label class="form-label">Correo electronico</label>
-              <input type="email" class="form-control" formControlName="email">
-              @if (form.get('email')?.touched && form.get('email')?.invalid) {
-                <small class="text-danger">Ingresa un correo valido.</small>
+              <label class="form-label">Usuario</label>
+              <input type="text" class="form-control" formControlName="usuario" placeholder="Ej: lmarin">
+              @if (form.get('usuario')?.touched && form.get('usuario')?.invalid) {
+                <small class="text-danger">Ingresa un usuario valido (minimo 3 caracteres).</small>
               }
             </div>
             <div class="mb-3">

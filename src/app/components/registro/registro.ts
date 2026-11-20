@@ -16,14 +16,21 @@ export class RegistroComponent {
   router = inject(Router);
 
   form = this.fb.group({
-    nombre: ['', [Validators.required, Validators.minLength(3)]],
-    email: ['', [Validators.required, Validators.email]],
+    usuario: ['', [Validators.required, Validators.minLength(3)]],
     password: ['', [Validators.required, passwordSeguraValidator]]
   });
 
   registrar(): void {
     if (this.form.invalid) return;
-    this.foroService.registrar(this.form.value as { nombre: string; email: string; password: string });
+    const usuario = (this.form.value.usuario || '').trim();
+    const password = this.form.value.password || '';
+
+    this.foroService.registrar({
+      nombre: usuario,
+      email: usuario,
+      password
+    });
+
     this.router.navigate(['/foro']);
   }
 }

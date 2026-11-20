@@ -1,9 +1,13 @@
-import { Rol } from './Rol';
+export interface Rol {
+  id?: number;
+  nombre: string;
+}
 
 export interface Usuario {
-  id: number;
+  id?: number;
   nombre: string;
-  email: string;
-  password: string;
-  rol: Rol;
+  correo?: string;
+  email?: string;
+  password?: string;
+  rol?: Rol;
 }

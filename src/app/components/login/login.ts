@@ -14,19 +14,36 @@ export class LoginComponent {
   foroService = inject(ForoService);
   router = inject(Router);
   errorLogin = false;
+  mensajeError = 'Credenciales incorrectas.';
 
   form = this.fb.group({
-    email: ['', [Validators.required, Validators.email]],
+    usuario: ['', [Validators.required, Validators.minLength(3)]],
     password: ['', Validators.required]
   });
 
   ingresar(): void {
     if (this.form.invalid) return;
-    const { email, password } = this.form.value;
-    if (this.foroService.login(email!, password!)) {
-      this.router.navigate(['/foro']);
-    } else {
-      this.errorLogin = true;
-    }
+    this.errorLogin = false;
+
+    const usuario = (this.form.value.usuario || '').trim();
+    const password = this.form.value.password || '';
+
+    // Intenta primero contra el microservicio de usuarios
+    this.foroService.loginConMicroservicio(
+      usuario,
+      password,
+      () => {
+        this.router.navigate(['/foro']);
+      },
+      (msg) => {
+        // Respaldo local si el usuario existe en memoria
+        if (this.foroService.login(usuario, password)) {
+          this.router.navigate(['/foro']);
+        } else {
+          this.mensajeError = msg || 'Credenciales incorrectas.';
+          this.errorLogin = true;
+        }
+      }
+    );
   }
 }
