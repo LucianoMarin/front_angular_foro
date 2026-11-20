@@ -1,0 +1,90 @@
+<div class="container pb-5">
+  <h4 class="mb-3">Categorias del Foro</h4>
+  <div class="row g-3 mb-4">
+    @for (cat of foroService.categorias; track cat) {
+      <div class="col-12 col-md-4 col-lg">
+        <div class="card h-100 shadow-sm"
+             style="cursor: pointer;"
+             [class.border-primary]="categoriaSeleccionada === cat"
+             (click)="categoriaSeleccionada = (categoriaSeleccionada === cat ? '' : cat)">
+          <div class="card-body text-center">
+            <h6 class="card-title fw-bold mt-2">{{ cat }}</h6>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h5>Buscar Temas</h5>
+          <input type="text" class="form-control" placeholder="Buscar por palabra clave..." [(ngModel)]="textoBusqueda">
+          @if (categoriaSeleccionada) {
+            <button class="btn btn-link btn-sm p-0 mt-2" (click)="categoriaSeleccionada = ''">Mostrar todas las categorias</button>
+          }
+        </div>
+      </div>
+
+      @if (foroService.usuarioActual) {
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h5>Nueva Publicacion</h5>
+            <form [formGroup]="formTema" (ngSubmit)="publicarTema()">
+              <div class="mb-2">
+                <label class="form-label">Categoria</label>
+                <select class="form-select" formControlName="categoria">
+                  @for (cat of foroService.categorias; track cat) {
+                    <option [value]="cat">{{ cat }}</option>
+                  }
+                </select>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Titulo</label>
+                <input type="text" class="form-control" formControlName="titulo">
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Contenido</label>
+                <textarea class="form-control" rows="3" formControlName="contenido"></textarea>
+              </div>
+              <button class="btn btn-primary w-100" [disabled]="formTema.invalid">Publicar Tema</button>
+            </form>
+          </div>
+        </div>
+      } @else {
+        <div class="alert alert-secondary">Inicia sesion para publicar temas y comentar.</div>
+      }
+    </div>
+
+    <div class="col-12 col-lg-8">
+      @for (pub of publicacionesFiltradas; track pub.id) {
+        <div class="card shadow-sm mb-3">
+          <div class="card-body">
+            <span class="badge bg-info text-dark mb-2">{{ pub.categoria }}</span>
+            <h5 class="card-title">{{ pub.titulo }}</h5>
+            <p class="card-text">{{ pub.contenido }}</p>
+            <small class="text-muted">Publicado por <strong>{{ pub.autor }}</strong> el {{ pub.fecha }}</small>
+
+            <hr>
+            <h6>Comentarios</h6>
+            @for (com of pub.comentarios; track com.id) {
+              @if (!com.baneado) {
+                <div class="bg-light p-2 rounded mb-2 small">
+                  <strong>{{ com.autor }}:</strong> {{ com.contenido }}
+                </div>
+              }
+            }
+
+            @if (foroService.usuarioActual) {
+              <div class="input-group input-group-sm mt-2">
+                <input type="text" class="form-control" placeholder="Escribe un comentario..." [(ngModel)]="nuevoComentario[pub.id]">
+                <button class="btn btn-outline-primary" (click)="comentar(pub.id)">Comentar</button>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+</div>

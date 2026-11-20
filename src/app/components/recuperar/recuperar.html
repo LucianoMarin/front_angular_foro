@@ -1,0 +1,38 @@
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-5">
+      <div class="card shadow p-4">
+        <h3 class="mb-3">Recuperar Contrasena</h3>
+        @if (mensaje) {
+          <div class="alert alert-info">{{ mensaje }}</div>
+        }
+        <form [formGroup]="form" (ngSubmit)="cambiar()">
+          <div class="mb-3">
+            <label class="form-label">Correo registrado</label>
+            <input type="email" class="form-control" formControlName="email">
+            @if (form.get('email')?.touched && form.get('email')?.invalid) {
+              <small class="text-danger">Ingresa un correo valido.</small>
+            }
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nueva contrasena</label>
+            <input type="password" class="form-control" formControlName="nuevaPassword">
+            @if (form.get('nuevaPassword')?.touched && form.get('nuevaPassword')?.errors) {
+              <ul class="text-danger small mt-1 mb-0">
+                @if (form.get('nuevaPassword')?.hasError('required')) { <li>Campo obligatorio</li> }
+                @if (form.get('nuevaPassword')?.hasError('minLongitud')) { <li>Minimo 8 caracteres</li> }
+                @if (form.get('nuevaPassword')?.hasError('maxLongitud')) { <li>Maximo 20 caracteres</li> }
+                @if (form.get('nuevaPassword')?.hasError('letrasYNumeros')) { <li>Debe incluir letras y numeros</li> }
+                @if (form.get('nuevaPassword')?.hasError('caracterEspecial')) { <li>Debe incluir un caracter especial</li> }
+              </ul>
+            }
+          </div>
+          <button class="btn btn-warning w-100 mb-2" [disabled]="form.invalid">Restablecer</button>
+          <div class="text-center small">
+            <a routerLink="/login">Volver al inicio de sesion</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

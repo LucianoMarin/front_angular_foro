@@ -1,0 +1,38 @@
+<div class="container">
+  <div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+      <div class="card shadow p-4">
+        <h3>Mi Perfil ({{ foroService.usuarioActual?.rol?.nombre }})</h3>
+        @if (guardado) {
+          <div class="alert alert-success">Perfil actualizado correctamente.</div>
+        }
+        <form [formGroup]="form" (ngSubmit)="guardar()">
+          <div class="mb-3">
+            <label class="form-label">Correo electronico</label>
+            <input type="email" class="form-control" [value]="foroService.usuarioActual?.email" disabled>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input type="text" class="form-control" formControlName="nombre">
+            @if (form.get('nombre')?.touched && form.get('nombre')?.invalid) {
+              <small class="text-danger">Minimo 3 caracteres.</small>
+            }
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nueva Contrasena (opcional)</label>
+            <input type="password" class="form-control" formControlName="password">
+            @if (form.get('password')?.touched && form.get('password')?.errors) {
+              <ul class="text-danger small mt-1 mb-0">
+                @if (form.get('password')?.hasError('minLongitud')) { <li>Minimo 8 caracteres</li> }
+                @if (form.get('password')?.hasError('maxLongitud')) { <li>Maximo 20 caracteres</li> }
+                @if (form.get('password')?.hasError('letrasYNumeros')) { <li>Debe incluir letras y numeros</li> }
+                @if (form.get('password')?.hasError('caracterEspecial')) { <li>Debe incluir un caracter especial</li> }
+              </ul>
+            }
+          </div>
+          <button class="btn btn-primary" [disabled]="form.invalid">Guardar Cambios</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,65 @@
+<div class="container pb-5">
+  <h3 class="mb-3">Panel de Moderacion</h3>
+  <div class="row g-4">
+    <div class="col-12 col-lg-8">
+      @for (pub of foroService.publicaciones; track pub.id) {
+        <div class="card mb-3" [class.border-danger]="pub.baneado">
+          <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div>
+                <h5 class="mb-1">
+                  {{ pub.titulo }}
+                  <span class="badge" [class.bg-danger]="pub.baneado" [class.bg-success]="!pub.baneado">
+                    {{ pub.baneado ? 'Baneado' : 'Activo' }}
+                  </span>
+                </h5>
+                <small class="text-muted">Autor: {{ pub.autor }} | Categoria: {{ pub.categoria }}</small>
+              </div>
+            </div>
+
+            <div class="input-group input-group-sm mb-2">
+              @if (!pub.baneado) {
+                <input type="text" class="form-control" placeholder="Motivo de sancion..." [(ngModel)]="motivoSancion[pub.id]">
+              }
+              <button class="btn" [class.btn-danger]="!pub.baneado" [class.btn-success]="pub.baneado" (click)="banearPublicacion(pub.id)">
+                {{ pub.baneado ? 'Restaurar Tema' : 'Banear Tema' }}
+              </button>
+            </div>
+
+            @if (pub.comentarios.length > 0) {
+              <div class="mt-3 ps-3 border-start">
+                <h6>Comentarios:</h6>
+                @for (com of pub.comentarios; track com.id) {
+                  <div class="d-flex justify-content-between align-items-center mb-1 small">
+                    <span [class.text-decoration-line-through]="com.baneado">{{ com.autor }}: {{ com.contenido }}</span>
+                    <button class="btn btn-outline-danger btn-sm py-0" (click)="banearComentario(pub.id, com.id)">
+                      {{ com.baneado ? 'Desbanear' : 'Banear' }}
+                    </button>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>Historial de Sanciones</h5>
+          @if (foroService.sanciones.length === 0) {
+            <p class="small text-muted">No hay sanciones registradas.</p>
+          }
+          @for (san of foroService.sanciones; track san.id) {
+            <div class="border-bottom pb-2 mb-2 small">
+              <strong>{{ san.tipo }} (ID: {{ san.referenciaId }})</strong><br>
+              Motivo: {{ san.motivo }}<br>
+              <span class="text-muted">Por {{ san.moderador }} el {{ san.fecha }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
