@@ -415,3 +415,12 @@ hr {
     justify-content: center;
   }
 }
+
+
+.row.justify-content-center > * {
+  grid-column-start: 1;
+  grid-column-end: -1;
+  max-width: 450px; /* Ancho ideal para una tarjeta de login */
+  width: 100%;
+  justify-self: center; /* Esto la centra horizontalmente en el Grid */
+}
