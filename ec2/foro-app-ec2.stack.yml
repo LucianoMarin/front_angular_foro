@@ -47,7 +47,12 @@ Parameters:
   OracleCredentialsSecretArn:
     Type: String
     AllowedPattern: '^arn:aws:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[A-Za-z0-9/_+=.@-]+$'
-    Description: Secret JSON containing DB_URL, DB_USERNAME and DB_PASSWORD.
+    Description: Secret JSON containing DB_USERNAME and DB_PASSWORD.
+  OracleServiceAlias:
+    Type: String
+    Default: fullstackiii_tp
+    AllowedPattern: '^[A-Za-z0-9._-]+$'
+    Description: Service alias present in the uploaded wallet's tnsnames.ora.
   FrontendEcrRepositoryName:
     Type: String
     Default: front-angular-foro
@@ -179,10 +184,6 @@ Resources:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:BatchGetImage
                   - ecr:GetDownloadUrlForLayer
-                  - ecr:InitiateLayerUpload
-                  - ecr:UploadLayerPart
-                  - ecr:CompleteLayerUpload
-                  - ecr:PutImage
                 Resource:
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${FrontendEcrRepositoryName}
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ControlSesionEcrRepositoryName}
@@ -239,68 +240,106 @@ Resources:
           Fn::Sub:
             - |
               #!/bin/bash
-              set -euxo pipefail
-              dnf install -y docker nginx jq
+              set -euo pipefail
+              dnf install -y docker nginx jq unzip
               command -v aws
               systemctl enable --now docker
               systemctl enable --now amazon-ssm-agent
-              rm -f /etc/nginx/conf.d/default.conf
-                  cat > /etc/nginx/conf.d/foro-app.conf <<'NGINX'
-                  server {
-                      listen 80 default_server;
-                      server_name _;
 
-                      location ~ ^/(auth|usuarios|rol)(/|$) {
-                          proxy_pass http://127.0.0.1:8081;
-                          proxy_set_header Host $host;
-                          proxy_set_header X-Real-IP $remote_addr;
-                          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                          proxy_set_header X-Forwarded-Proto $scheme;
-                      }
+              cat > /etc/nginx/conf.d/foro-app.conf <<'NGINX'
+              server {
+                  listen 80 default_server;
+                  server_name _;
 
-                      location ~ ^/(moderacion|sanciones)(/|$) {
-                          proxy_pass http://127.0.0.1:8082;
-                          proxy_set_header Host $host;
-                          proxy_set_header X-Real-IP $remote_addr;
-                          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                          proxy_set_header X-Forwarded-Proto $scheme;
-                      }
-
-                      location ~ ^/(temas|publicaciones|comentarios)(/|$) {
-                          proxy_pass http://127.0.0.1:8083;
-                          proxy_set_header Host $host;
-                          proxy_set_header X-Real-IP $remote_addr;
-                          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                          proxy_set_header X-Forwarded-Proto $scheme;
-                      }
-
-                      location / {
-                          proxy_pass http://127.0.0.1:4000;
-                          proxy_set_header Host $host;
-                          proxy_set_header X-Real-IP $remote_addr;
-                          proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                          proxy_set_header X-Forwarded-Proto $scheme;
-                      }
+                  location ~ ^/(auth|usuarios|rol)(/|$) {
+                      proxy_pass http://127.0.0.1:8081;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
                   }
-                  NGINX
+
+                  location ~ ^/(moderacion|sanciones)(/|$) {
+                      proxy_pass http://127.0.0.1:8082;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                  }
+
+                  location ~ ^/(temas|publicaciones|comentarios)(/|$) {
+                      proxy_pass http://127.0.0.1:8083;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                  }
+
+                  location / {
+                      proxy_pass http://127.0.0.1:4000;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                  }
+              }
+              NGINX
               nginx -t
               systemctl enable --now nginx
-              systemctl reload nginx
 
-              ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-              REGION=$(ec2-metadata --availability-zone | cut -d ' ' -f 2 | sed 's/[a-z]$//')
-              ECR="${!ACCOUNT_ID}.dkr.ecr.${!REGION}.amazonaws.com"
-              aws ecr get-login-password --region "${!REGION}" | docker login --username AWS --password-stdin "${!ECR}"
+              REGION='${AWS::Region}'
+              ACCOUNT_ID='${AWS::AccountId}'
+              ECR="$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com"
+              aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$ECR"
 
-              SECRET_JSON=$(aws secretsmanager get-secret-value --region "${!REGION}" --secret-id ${SecretArn} --query SecretString --output text)
-              DB_URL=$(printf '%s' "$SECRET_JSON" | jq -r '.DB_URL // empty')
-              DB_USERNAME=$(printf '%s' "$SECRET_JSON" | jq -r '.DB_USERNAME // empty')
-              DB_PASSWORD=$(printf '%s' "$SECRET_JSON" | jq -r '.DB_PASSWORD // empty')
+              SECRET_JSON=$(aws secretsmanager get-secret-value --region "$REGION" --secret-id '${SecretArn}' --query SecretString --output text)
+              DB_USERNAME=$(printf '%s' "$SECRET_JSON" | jq -er '.DB_USERNAME')
+              DB_PASSWORD=$(printf '%s' "$SECRET_JSON" | jq -er '.DB_PASSWORD')
+              JDBC_URL='jdbc:oracle:thin:@${OracleServiceAlias}'
 
               mkdir -p /opt/oracle/wallet
-              aws s3 cp s3://${WalletBucket}/${WalletKey} /tmp/oracle-wallet.zip
+              aws s3 cp 's3://${WalletBucket}/${WalletKey}' /tmp/oracle-wallet.zip
               unzip -oq /tmp/oracle-wallet.zip -d /opt/oracle/wallet
+              test -s /opt/oracle/wallet/tnsnames.ora
+
+              docker pull "$ECR/${FrontendRepo}:${ImageTag}"
+              docker pull "$ECR/${ControlSesionRepo}:${ImageTag}"
+              docker pull "$ECR/${ModeracionRepo}:${ImageTag}"
+              docker pull "$ECR/${TemasRepo}:${ImageTag}"
+
+              docker rm -f frontend foro-control-sesion foro-moderacion foro-temas 2>/dev/null || true
+              docker run -d --name frontend --restart unless-stopped \
+                -p 127.0.0.1:4000:80 \
+                "$ECR/${FrontendRepo}:${ImageTag}"
+              docker run -d --name foro-control-sesion --restart unless-stopped \
+                -p 127.0.0.1:8081:8080 \
+                -e SERVER_PORT=8080 -e TNS_ADMIN=/opt/oracle/wallet \
+                -e DB_URL="$JDBC_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
+                -e SPRING_DATASOURCE_URL="$JDBC_URL" \
+                -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" \
+                -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
+                "$ECR/${ControlSesionRepo}:${ImageTag}"
+              docker run -d --name foro-moderacion --restart unless-stopped \
+                -p 127.0.0.1:8082:8080 \
+                -e SERVER_PORT=8080 -e TNS_ADMIN=/opt/oracle/wallet \
+                -e DB_URL="$JDBC_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
+                -e SPRING_DATASOURCE_URL="$JDBC_URL" \
+                -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" \
+                -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
+                "$ECR/${ModeracionRepo}:${ImageTag}"
+              docker run -d --name foro-temas --restart unless-stopped \
+                -p 127.0.0.1:8083:8080 \
+                -e SERVER_PORT=8080 -e TNS_ADMIN=/opt/oracle/wallet \
+                -e DB_URL="$JDBC_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
+                -e SPRING_DATASOURCE_URL="$JDBC_URL" \
+                -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" \
+                -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
+                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
+                "$ECR/${TemasRepo}:${ImageTag}"
             - SecretArn: !Ref OracleCredentialsSecretArn
+              OracleServiceAlias: !Ref OracleServiceAlias
               WalletBucket: !If [CreateWalletBucket, !Ref OracleWalletBucket, !Ref OracleWalletBucketName]
               WalletKey: !Ref OracleWalletObjectKey
               ImageTag: !Ref ImageTag
