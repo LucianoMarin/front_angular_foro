@@ -179,6 +179,10 @@ Resources:
                   - ecr:BatchCheckLayerAvailability
                   - ecr:BatchGetImage
                   - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:UploadLayerPart
+                  - ecr:CompleteLayerUpload
+                  - ecr:PutImage
                 Resource:
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${FrontendEcrRepositoryName}
                   - !Sub arn:${AWS::Partition}:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ControlSesionEcrRepositoryName}
@@ -296,41 +300,6 @@ Resources:
               mkdir -p /opt/oracle/wallet
               aws s3 cp s3://${WalletBucket}/${WalletKey} /tmp/oracle-wallet.zip
               unzip -oq /tmp/oracle-wallet.zip -d /opt/oracle/wallet
-
-              docker pull "${!ECR}/${ControlSesionRepo}:${ImageTag}"
-              docker pull "${!ECR}/${ModeracionRepo}:${ImageTag}"
-              docker pull "${!ECR}/${TemasRepo}:${ImageTag}"
-              docker pull "${!ECR}/${FrontendRepo}:${ImageTag}"
-
-              docker rm -f foro-control-sesion foro-moderacion foro-temas frontend 2>/dev/null || true
-
-              docker run -d --name foro-control-sesion --restart unless-stopped \
-                -p 127.0.0.1:8081:8081 \
-                -e SERVER_PORT=8081 -e TNS_ADMIN=/opt/oracle/wallet \
-                -e DB_URL="$DB_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
-                -e SPRING_DATASOURCE_URL="$DB_URL" -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
-                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
-                "${!ECR}/${ControlSesionRepo}:${ImageTag}"
-
-              docker run -d --name foro-moderacion --restart unless-stopped \
-                -p 127.0.0.1:8082:8082 \
-                -e SERVER_PORT=8082 -e TNS_ADMIN=/opt/oracle/wallet \
-                -e DB_URL="$DB_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
-                -e SPRING_DATASOURCE_URL="$DB_URL" -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
-                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
-                "${!ECR}/${ModeracionRepo}:${ImageTag}"
-
-              docker run -d --name foro-temas --restart unless-stopped \
-                -p 127.0.0.1:8083:8083 \
-                -e SERVER_PORT=8083 -e TNS_ADMIN=/opt/oracle/wallet \
-                -e DB_URL="$DB_URL" -e DB_USERNAME="$DB_USERNAME" -e DB_PASSWORD="$DB_PASSWORD" \
-                -e SPRING_DATASOURCE_URL="$DB_URL" -e SPRING_DATASOURCE_USERNAME="$DB_USERNAME" -e SPRING_DATASOURCE_PASSWORD="$DB_PASSWORD" \
-                -v /opt/oracle/wallet:/opt/oracle/wallet:ro \
-                "${!ECR}/${TemasRepo}:${ImageTag}"
-
-              docker run -d --name frontend --restart unless-stopped \
-                -p 127.0.0.1:4000:80 \
-                "${!ECR}/${FrontendRepo}:${ImageTag}"
             - SecretArn: !Ref OracleCredentialsSecretArn
               WalletBucket: !If [CreateWalletBucket, !Ref OracleWalletBucket, !Ref OracleWalletBucketName]
               WalletKey: !Ref OracleWalletObjectKey
