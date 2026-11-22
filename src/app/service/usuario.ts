@@ -7,8 +7,8 @@ import { environment } from '../../environments/environment';
 export class UsuarioService {
   private http = inject(HttpClient);
 
-  private usuarioApiUrl = `${environment.apiUrl}/api/usuarios`;
-  private rolApiUrl = `${environment.apiUrl}/api/roles`;
+  private usuarioApiUrl = `${environment.apiUrl}/usuarios`;
+  private rolApiUrl = `${environment.apiUrl}/rol`;
 
   obtenerUsuarios(): Observable<any[]> {
     return this.http.get<any[]>(this.usuarioApiUrl);
@@ -23,8 +23,7 @@ export class UsuarioService {
     const payload = {
       usuario: nombreUsuario,
       clave: datos.password,
-      intento: 0,
-      rol: { id: 2, nombre: 'ROL_NORMAL' }
+      intento: 0
     };
     return this.http.post<any>(`${this.usuarioApiUrl}/registrar`, payload);
   }

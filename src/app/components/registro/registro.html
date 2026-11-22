@@ -1,9 +1,22 @@
-<div class="container">
+<div class="container mt-5">
   <div class="row justify-content-center">
     <div class="col-12 col-md-8 col-lg-6">
       <div class="card shadow">
         <div class="card-body p-4">
           <h3 class="text-center mb-3">Registro de Usuario</h3>
+
+          @if (exitoMensaje()) {
+            <div class="alert alert-success text-center">
+              {{ exitoMensaje() }}
+            </div>
+          }
+
+          @if (errorMensaje()) {
+            <div class="alert alert-danger text-center">
+              {{ errorMensaje() }}
+            </div>
+          }
+
           <form [formGroup]="form" (ngSubmit)="registrar()">
             <div class="mb-3">
               <label class="form-label">Usuario</label>
@@ -25,7 +38,9 @@
                 </ul>
               }
             </div>
-            <button class="btn btn-success w-100 mb-2" [disabled]="form.invalid">Registrarse</button>
+            <button class="btn btn-success w-100 mb-2" [disabled]="form.invalid || cargando()">
+              {{ cargando() ? 'Registrando...' : 'Registrarse' }}
+            </button>
             <div class="text-center small">
               <a routerLink="/login">Ya tienes cuenta? Inicia sesion</a>
             </div>
