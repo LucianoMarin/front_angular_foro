@@ -1,21 +1,39 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Login } from './login';
+import { Component, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
+import { AuthService } from '../../auth/auth.service';
 
-describe('Login', () => {
-  let component: Login;
-  let fixture: ComponentFixture<Login>;
+@Component({
+  selector: 'app-login',
+  standalone: true,
+  imports: [FormsModule],
+  template: `
+    <h2>Login</h2>
+    <input [(ngModel)]="usuario" placeholder="Usuario" />
+    <input [(ngModel)]="clave" type="password" placeholder="Contraseña" />
+    <button (click)="onLogin()">Entrar</button>
+  `
+})
+export class LoginComponent {
+  private authService = inject(AuthService);
+  private router = inject(Router);
 
-  beforeEach(async () => {
-    await TestBed.configureTestingModule({
-      imports: [Login],
-    }).compileComponents();
+  usuario = '';
+  clave = '';
 
-    fixture = TestBed.createComponent(Login);
-    component = fixture.componentInstance;
-    await fixture.whenStable();
-  });
+  onLogin(): void {
+    const credentials = {
+      username: this.usuario,
+      password: this.clave
+    };
 
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-});
+    this.authService.login(credentials).subscribe({
+      next: () => {
+        this.router.navigate(['/entidades']);
+      },
+      error: () => {
+        alert('Credenciales inválidas');
+      }
+    });
+  }
+}

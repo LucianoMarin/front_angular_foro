@@ -6,14 +6,16 @@ import { Publicacion } from '../models/Publicacion';
 import { Rol } from '../models/Rol';
 import { SancionContenido } from '../models/SancionContenido';
 import { UsuarioService } from './usuario';
+import { AuthService } from '../auth/auth.service';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class ForoService {
   private http = inject(HttpClient);
   private usuarioService = inject(UsuarioService);
+  private authService = inject(AuthService);
 
-  // Ajusta si tienes un microservicio o rutas de publicaciones en Spring Boot
-  private foroApiUrl = 'http://localhost:8082/';
+  private foroApiUrl = environment.apiUrl;
 
   usuarioActual: Usuario | null = null;
 
@@ -80,19 +82,8 @@ export class ForoService {
     onSuccess?: () => void,
     onError?: (msg: string) => void
   ): void {
-    this.usuarioService.login(identificador, clave).subscribe({
-      next: (respuestaTexto) => {
-        const textoLower = (respuestaTexto || '').toLowerCase();
-        if (
-          textoLower.includes('incorrect') ||
-          textoLower.includes('error') ||
-          textoLower.includes('invalid') ||
-          textoLower.includes('no existe')
-        ) {
-          onError?.(respuestaTexto || 'Credenciales inválidas');
-          return;
-        }
-
+    this.authService.login({ username: identificador, password: clave }).subscribe({
+      next: () => {
         this.usuarioService.obtenerUsuarios().subscribe({
           next: (lista) => {
             const encontrado = lista.find(u => u.usuario === identificador);
@@ -119,12 +110,13 @@ export class ForoService {
         });
       },
       error: (err) => {
-        onError?.(err?.error || 'Error al conectar con el microservicio de usuarios');
+        onError?.(err?.error?.error || 'Error al conectar con el microservicio de usuarios');
       }
     });
   }
 
   logout(): void {
+    this.authService.logout();
     this.usuarioActual = null;
   }
 

@@ -1,13 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 @Injectable({ providedIn: 'root' })
 export class UsuarioService {
   private http = inject(HttpClient);
 
-  private usuarioApiUrl = 'http://localhost:8082/usuarios';
-  private rolApiUrl = 'http://localhost:8082/rol';
+  private usuarioApiUrl = `${environment.apiUrl}/api/usuarios`;
+  private rolApiUrl = `${environment.apiUrl}/api/roles`;
 
   obtenerUsuarios(): Observable<any[]> {
     return this.http.get<any[]>(this.usuarioApiUrl);
@@ -15,14 +16,6 @@ export class UsuarioService {
 
   obtenerRoles(): Observable<any[]> {
     return this.http.get<any[]>(this.rolApiUrl);
-  }
-
-  login(usuario: string, clave: string): Observable<string> {
-    return this.http.post(
-      `${this.usuarioApiUrl}/login`,
-      { usuario, clave },
-      { responseType: 'text' }
-    );
   }
 
   registrar(datos: { usuario?: string; nombre?: string; email?: string; password: string }): Observable<any> {
